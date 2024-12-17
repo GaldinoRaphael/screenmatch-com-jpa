@@ -5,10 +5,9 @@ import com.deepl.api.DeepLException;
 import com.deepl.api.TextResult;
 import com.deepl.api.Translator;
 
-public class ConsultaChatGPT {
+public class ConsultaDeepL {
     public static String obterTraducao(String texto) {
-        String authKey = "c548da5d-1732-42d5-a652-fcd95e043689:fx";
-        var translator = new Translator(authKey);
+        var translator = new Translator(System.getenv("DEEP_L_KEY"));
         TextResult result =
                 null;
         try {
