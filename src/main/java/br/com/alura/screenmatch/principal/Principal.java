@@ -1,15 +1,11 @@
 package br.com.alura.screenmatch.principal;
 
-import br.com.alura.screenmatch.model.DadosSerie;
-import br.com.alura.screenmatch.model.DadosTemporada;
-import br.com.alura.screenmatch.model.Episodio;
-import br.com.alura.screenmatch.model.Serie;
+import br.com.alura.screenmatch.model.*;
 import br.com.alura.screenmatch.repository.SerieRepository;
 import br.com.alura.screenmatch.service.ConsumoApi;
 import br.com.alura.screenmatch.service.ConverteDados;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class Principal {
 
@@ -20,6 +16,7 @@ public class Principal {
     private final String ENDERECO = "https://www.omdbapi.com/?t=";
     private final String API_KEY = "&apikey=6585022c";
     private List<DadosSerie> dadosSeries = new ArrayList<>();
+    private List<Serie> series;
 
     public Principal(SerieRepository repositorio) {
         this.repositorio = repositorio;
@@ -32,6 +29,11 @@ public class Principal {
                     1 - Buscar séries
                     2 - Buscar episódios
                     3 - Listar séries buscadas
+                    4 - Buscar série por título
+                    5 - Buscar série pelo ator
+                    6 - Top 5 séries
+                    7 - Buscar série por categoria
+                    8 - Buscar pelo número máximo e temporadas e avaliação
                     0 - Sair                                 
                     """;
 
@@ -49,6 +51,21 @@ public class Principal {
                 case 3:
                     listarSeriesBuscadas();
                     break;
+                case 4:
+                    buscarSeriePorTitulo();
+                    break;
+                case 5:
+                    buscarSeriesPeloAtor();
+                    break;
+                case 6:
+                    buscarTopCincoSeries();
+                    break;
+                case 7:
+                    buscarSeriePorCategoria();
+                    break;
+                case 8:
+                    buscarSeriesPeloNumeroDeTemporadasMaximoEAvaliacaoMinima();
+                    break;
                 case 0:
                     System.out.println("Saindo...");
                     break;
@@ -58,8 +75,18 @@ public class Principal {
         }
     }
 
+    private void buscarSeriePorCategoria() {
+        System.out.println("Digite uma categoria: ");
+        var entrada = leitura.nextLine();
+        Categoria categoria = Categoria.fromPortugues(entrada);
+
+        List<Serie> series = repositorio.findByGenero(categoria);
+        System.out.println("Series da " + entrada + " encontrada: ");
+        series.forEach(System.out::println);
+    }
+
     private void listarSeriesBuscadas() {
-        List<Serie> series = repositorio.findAll();
+        series = repositorio.findAll();
         series.stream().sorted(Comparator.comparing(Serie::getGenero)).forEach(System.out::println);
     }
 
@@ -80,14 +107,87 @@ public class Principal {
     }
 
     private void buscarEpisodioPorSerie(){
-        DadosSerie dadosSerie = getDadosSerie();
+        listarSeriesBuscadas();
+
         List<DadosTemporada> temporadas = new ArrayList<>();
 
-        for (int i = 1; i <= dadosSerie.totalTemporadas(); i++) {
-            var json = consumo.obterDados(ENDERECO + dadosSerie.titulo().replace(" ", "+") + "&season=" + i + API_KEY);
+        System.out.println("Qual serie você deseja buscar os episodios: ");
+        var trechoTitulo = leitura.nextLine();
+
+        Optional<Serie> serie = repositorio.findByTituloContainingIgnoreCase(trechoTitulo);
+
+        if(!serie.isPresent()) {
+            System.out.println("Série não encontrada!");
+         return;
+        }
+
+        var dadosSerie = serie.get();
+
+        for (int i = 1; i <= dadosSerie.getTotalTemporadas(); i++) {
+            var json = consumo.obterDados(ENDERECO + dadosSerie.getTitulo().replace(" ", "+") + "&season=" + i + API_KEY);
             DadosTemporada dadosTemporada = conversor.obterDados(json, DadosTemporada.class);
             temporadas.add(dadosTemporada);
         }
-        temporadas.forEach(System.out::println);
+
+        List<Episodio> episodios = temporadas.stream()
+                .flatMap(t -> t.episodios().stream()
+                        .map(e -> new Episodio(t.numero(), e)))
+                .toList();
+
+        dadosSerie.setEpisodios(episodios);
+        repositorio.save(dadosSerie);
+
+    }
+
+    private void buscarSeriePorTitulo(){
+        System.out.println("Qual titulo da serie você deseja buscar: ");
+        var trechoTitulo = leitura.nextLine();
+
+        Optional<Serie> serie = repositorio.findByTituloContainingIgnoreCase(trechoTitulo);
+
+        if(!serie.isPresent()) {
+            System.out.println("Série não encontrada!");
+            return;
+        }
+
+        System.out.println(serie.get());
+    }
+
+    private void buscarSeriesPeloAtor(){
+        System.out.println("Qual ator das serie você deseja buscar: ");
+        var ator = leitura.nextLine();
+
+
+       List<Serie> series =  repositorio.findAllByAtoresContainingIgnoreCaseAndAvaliacaoIsGreaterThanEqual(ator, 7.0);
+
+        if(series.isEmpty()){
+            System.out.println("Série não encontrada!");
+            return;
+        }
+
+        System.out.println("Ele trabalhou nas séries: ");
+        series.forEach(s -> System.out.println(s.getTitulo()));
+        System.out.println();
+    }
+
+    private void buscarTopCincoSeries() {
+        List<Serie> series = repositorio.findTop5ByOrderByAvaliacaoDesc();
+
+        series.forEach(s -> System.out.println(s.getTitulo() + " " + s.getAvaliacao()));
+        System.out.println();
+    }
+
+    private void buscarSeriesPeloNumeroDeTemporadasMaximoEAvaliacaoMinima(){
+        System.out.println("Digite o número máximo de temporadas:");
+        var numeroMaximoDeEntradas = leitura.nextInt();
+        leitura.nextLine();
+
+        System.out.println("Digite a avalição mínima:");
+        var avaliacaoMinima = leitura.nextDouble();
+        leitura.nextLine();
+
+        List<Serie> series = repositorio.findByAvaliacaoIsGreaterThanEqualAndTotalTemporadasIsLessThanEqual(avaliacaoMinima, numeroMaximoDeEntradas);
+
+        series.forEach(System.out::println);
     }
 }
