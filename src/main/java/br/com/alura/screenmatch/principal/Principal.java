@@ -5,6 +5,11 @@ import br.com.alura.screenmatch.repository.SerieRepository;
 import br.com.alura.screenmatch.service.ConsumoApi;
 import br.com.alura.screenmatch.service.ConverteDados;
 
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.*;
 
 public class Principal {
@@ -34,6 +39,9 @@ public class Principal {
                     6 - Top 5 séries
                     7 - Buscar série por categoria
                     8 - Buscar pelo número máximo e temporadas e avaliação
+                    9 - Buscar pelo episodio
+                    10 - Top 5 episodios
+                    11 - Buscar episodios apartir de uma data
                     0 - Sair                                 
                     """;
 
@@ -66,6 +74,14 @@ public class Principal {
                 case 8:
                     buscarSeriesPeloNumeroDeTemporadasMaximoEAvaliacaoMinima();
                     break;
+                case 9:
+                    buscarSeriePeloEpisodio();
+                    break;
+                case 10:
+                    top5EpisodiosDaSerie();
+                    break;
+                case 11:
+                    buscarEpisodiosApartirDeUmaData();
                 case 0:
                     System.out.println("Saindo...");
                     break;
@@ -73,6 +89,53 @@ public class Principal {
                     System.out.println("Opção inválida");
             }
         }
+    }
+
+    private void buscarEpisodiosApartirDeUmaData() {
+        System.out.println("Digite apartir de que data de lançamento (dd/MM/yyyy) deseja buscar os episodios: ");
+        var entrada = leitura.nextLine();
+        DateFormat df = new SimpleDateFormat("dd/MM/yyyy");
+        LocalDate data;
+
+        try {
+            data = df.parse(entrada).toInstant().atZone(ZoneId.systemDefault())
+                    .toLocalDate();;
+            System.out.println(data);
+            List<Episodio> episodios = repositorio.findEpsidiosByData(data);
+
+            episodios.forEach(e ->
+                    System.out.printf("Série: %s Temporada %s - Episódio %s - %s - Data %s \n",
+                            e.getSerie().getTitulo(), e.getTemporada(),
+                            e.getNumeroEpisodio(), e.getTitulo(), e.getDataLancamento()));
+
+        } catch (ParseException e) {
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    private void top5EpisodiosDaSerie() {
+        System.out.println("Digite o nome da série: ");
+        var nome = leitura.nextLine();
+
+        List<Episodio> episodios = repositorio.findTop5BySerie(nome);
+
+        episodios.forEach(e ->
+                System.out.printf("Série: %s Temporada %s - Episódio %s - %s - Avaliação %s \n",
+                        e.getSerie().getTitulo(), e.getTemporada(),
+                        e.getNumeroEpisodio(), e.getTitulo(), e.getAvaliacao()));
+    }
+
+    private void buscarSeriePeloEpisodio() {
+        System.out.println("Digite um trecho do nome do episódio: ");
+        var trecho = leitura.nextLine();
+
+        List<Episodio> episodios = repositorio.findByEpisodio(trecho);
+
+        episodios.forEach(e ->
+                System.out.printf("Série: %s Temporada %s - Episódio %s - %s\n",
+                        e.getSerie().getTitulo(), e.getTemporada(),
+                        e.getNumeroEpisodio(), e.getTitulo()));
     }
 
     private void buscarSeriePorCategoria() {
@@ -186,7 +249,8 @@ public class Principal {
         var avaliacaoMinima = leitura.nextDouble();
         leitura.nextLine();
 
-        List<Serie> series = repositorio.findByAvaliacaoIsGreaterThanEqualAndTotalTemporadasIsLessThanEqual(avaliacaoMinima, numeroMaximoDeEntradas);
+        //List<Serie> series = repositorio.findByAvaliacaoIsGreaterThanEqualAndTotalTemporadasIsLessThanEqual(avaliacaoMinima, numeroMaximoDeEntradas);
+        List<Serie> series = repositorio.findByAvaliacaoAndTemporadas(avaliacaoMinima, numeroMaximoDeEntradas);
 
         series.forEach(System.out::println);
     }

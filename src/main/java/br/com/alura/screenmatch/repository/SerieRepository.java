@@ -1,9 +1,13 @@
 package br.com.alura.screenmatch.repository;
 
 import br.com.alura.screenmatch.model.Categoria;
+import br.com.alura.screenmatch.model.Episodio;
 import br.com.alura.screenmatch.model.Serie;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
+import java.time.LocalDate;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,4 +19,16 @@ public interface SerieRepository extends JpaRepository<Serie, Long> {
 
     List<Serie> findByGenero(Categoria categoria);
     List<Serie> findByAvaliacaoIsGreaterThanEqualAndTotalTemporadasIsLessThanEqual(Double avaliacao, Integer temporadas);
+
+    @Query("SELECT s FROM Serie s WHERE s.avaliacao >= :avaliacao AND s.totalTemporadas < :temporadas")
+    List<Serie> findByAvaliacaoAndTemporadas(Double avaliacao, Integer temporadas);
+
+    @Query("SELECT e FROM Serie s JOIN s.episodios e WHERE e.titulo ilike %:episodio%")
+    List<Episodio> findByEpisodio(String episodio);
+
+    @Query("SELECT e FROM Serie s JOIN s.episodios e WHERE s.titulo ilike %:titulo% ORDER BY e.avaliacao DESC LIMIT 5")
+    List<Episodio> findTop5BySerie(String titulo);
+
+    @Query("SELECT e FROM Serie s JOIN s.episodios e WHERE e.dataLancamento >= :data")
+    List<Episodio> findEpsidiosByData(LocalDate data);
 }
